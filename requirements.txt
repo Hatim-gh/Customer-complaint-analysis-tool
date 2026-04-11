@@ -1,0 +1,8 @@
+streamlit
+pandas
+numpy
+transformers
+sentence-transformers
+torch
+# Optional: faster vector search if available for your Python version
+faiss-cpu

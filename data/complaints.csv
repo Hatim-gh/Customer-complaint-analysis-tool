@@ -1,0 +1,11 @@
+Complaint,Sentiment,Category
+My account was debited twice,Negative,Transaction
+Loan approval process was smooth,Positive,Loan
+Credit card charges are incorrect,Negative,Credit Card
+Customer support resolved my issue quickly,Positive,Support
+ATM machine was not working,Negative,ATM
+Interest rates are too high,Negative,Loan
+Mobile banking app is easy to use,Positive,App
+Unauthorized transaction detected,Negative,Fraud
+Bank staff was very helpful,Positive,Support
+Debit card not delivered on time,Negative,Debit Card

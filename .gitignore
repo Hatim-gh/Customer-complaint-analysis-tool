@@ -1,0 +1,68 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# IDE / OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Build / packaging
+build/
+dist/
+*.egg-info/
+
+# Logs
+*.log
+logs/
+
+# AI / ML caches and generated artifacts
+.cache/
+cache/
+models/
+checkpoints/
+artifacts/
+outputs/
+runs/
+wandb/
+mlruns/
+
+# Hugging Face / vector stores
+.huggingface/
+.hf/
+chroma/
+chromadb/
+faiss_index/
+vector_store/
+vectorstores/
+*.faiss
+*.index
+
+# Local datasets or exports you likely do not want to push
+project-excel.xlsx
+project-excel1.csv
+data/processed/
+data/raw/
+data/uploads/

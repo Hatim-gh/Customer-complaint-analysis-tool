@@ -1,0 +1,4 @@
+Complaint,Sentiment,Category,Summary,Reason,RecordedAt
+"good customer  service from the bank
+",Positive,Other, good customer service from the bank . good customers service from bank . Good customer service . good customer experience from bank customers .,The complaint does not match predefined categories.,2026-04-15T17:30:54.013687
+unauthroized debit card transaction,Negative,Debit Card, unauthroized debit card transaction transaction transaction is an unauthorised transaction . The transaction was made on a debit card issued from a,The complaint involves debit card issues.,2026-04-15T17:31:48.164425

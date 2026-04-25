@@ -3,6 +3,7 @@ import streamlit as st
 from pathlib import Path
 
 from utils.analyzer import analyze_complaint
+from utils.live_store import LIVE_DATA_COLUMNS, append_live_record, clear_live_data, load_live_data
 from utils.vector_db import search_similar
 
 
@@ -15,15 +16,6 @@ st.set_page_config(
 
 
 REFERENCE_DATA_FILE = Path("data/complaints.csv")
-LIVE_DATA_FILE = Path("data/live_complaints.csv")
-LIVE_DATA_COLUMNS = [
-    "Complaint",
-    "Sentiment",
-    "Category",
-    "Summary",
-    "Reason",
-    "RecordedAt",
-]
 
 
 def inject_styles() -> None:
@@ -291,40 +283,6 @@ def load_data() -> pd.DataFrame:
     return data
 
 
-def ensure_live_data_file() -> None:
-    LIVE_DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
-    if not LIVE_DATA_FILE.exists():
-        pd.DataFrame(columns=LIVE_DATA_COLUMNS).to_csv(LIVE_DATA_FILE, index=False)
-
-
-def load_live_data() -> pd.DataFrame:
-    ensure_live_data_file()
-    live_data = pd.read_csv(LIVE_DATA_FILE)
-
-    if live_data.empty:
-        return pd.DataFrame(columns=LIVE_DATA_COLUMNS)
-
-    missing_columns = [column for column in LIVE_DATA_COLUMNS if column not in live_data.columns]
-    for column in missing_columns:
-        live_data[column] = ""
-
-    return live_data[LIVE_DATA_COLUMNS]
-
-
-def append_live_record(record: dict[str, str]) -> None:
-    ensure_live_data_file()
-    pd.DataFrame([record], columns=LIVE_DATA_COLUMNS).to_csv(
-        LIVE_DATA_FILE,
-        mode="a",
-        header=LIVE_DATA_FILE.stat().st_size == 0,
-        index=False,
-    )
-
-
-def clear_live_data() -> None:
-    pd.DataFrame(columns=LIVE_DATA_COLUMNS).to_csv(LIVE_DATA_FILE, index=False)
-
-
 def render_metric_card(label: str, value: str, detail: str) -> None:
     st.markdown(
         f"""
@@ -496,7 +454,7 @@ if "analysis_result" not in st.session_state:
 
 
 st.sidebar.markdown("## Live Dashboard")
-st.sidebar.caption("These charts update from complaints analyzed in the current session.")
+st.sidebar.caption("These charts update from complaints stored in the live database.")
 st.sidebar.metric("Reference Complaints", len(reference_data))
 st.sidebar.metric("Saved Live Analyses", len(live_data))
 
@@ -575,10 +533,10 @@ st.markdown(
             <h1 class="hero-title">Live complaint analysis dashboard powered by your pretrained models.</h1>
             <p class="hero-copy">
                 Analyze a complaint, generate model outputs in real time, and watch the dashboard
-                update from live session activity instead of fixed historical chart data.
+                update from live database activity instead of fixed historical chart data.
             </p>
             <div class="pill-row">
-                <div class="hero-pill">{total_cases} live analyses in this session</div>
+                <div class="hero-pill">{total_cases} live analyses stored</div>
                 <div class="hero-pill">{negative_rate:.0f}% live negative share</div>
                 <div class="hero-pill">{len(reference_data)} reference complaints loaded for similarity search</div>
             </div>
@@ -588,7 +546,7 @@ st.markdown(
             <div class="hero-aside-value">{len(reference_data)}</div>
             <div class="hero-aside-copy">
                 complaint records from {reference_window} are kept only for similarity search,
-                demo support, and reference lookup. The live dashboard below is session-driven.
+                demo support, and reference lookup. The live dashboard below is database-backed.
             </div>
         </div>
     </div>
@@ -718,9 +676,9 @@ if st.session_state.analysis_result:
     )
 
 st.markdown('<div class="section-kicker">Complaint Intelligence</div>', unsafe_allow_html=True)
-st.markdown('<div class="section-title">Live session analytics</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-title">Live complaint analytics</div>', unsafe_allow_html=True)
 st.markdown(
-    '<div class="section-copy">These charts update in real time from complaints analyzed in the current session. They do not use the historical CSV for chart values.</div>',
+    '<div class="section-copy">These charts update in real time from complaints stored in the live database. They do not use the historical CSV for chart values.</div>',
     unsafe_allow_html=True,
 )
 
@@ -730,11 +688,11 @@ else:
     chart_row_1 = st.columns([1.4, 1], gap="large")
     with chart_row_1[0]:
         st.markdown("#### Live analysis activity")
-        st.caption("Counts how many complaints were analyzed over time in this session.")
+        st.caption("Counts how many complaints were analyzed over time in the live database.")
         st.vega_lite_chart(trend_counts, build_trend_spec(), use_container_width=True)
     with chart_row_1[1]:
         st.markdown("#### Live sentiment mix")
-        st.caption("Distribution of model sentiment outputs in the current session.")
+        st.caption("Distribution of model sentiment outputs in the live database.")
         st.vega_lite_chart(sentiment_counts, build_donut_spec(), use_container_width=True)
 
     chart_row_2 = st.columns(2, gap="large")
@@ -754,7 +712,7 @@ else:
 st.markdown('<div class="section-kicker">Case Register</div>', unsafe_allow_html=True)
 st.markdown('<div class="section-title">Live analysis register</div>', unsafe_allow_html=True)
 st.markdown(
-    '<div class="section-copy">Each new complaint analyzed in this session is added here and immediately reflected in the live charts.</div>',
+    '<div class="section-copy">Each new complaint analyzed is saved to the live database and immediately reflected in the live charts.</div>',
     unsafe_allow_html=True,
 )
 

@@ -3,3 +3,8 @@ pandas
 numpy
 sqlalchemy
 psycopg2-binary
+transformers
+sentence-transformers
+torch
+# Optional: faster vector search if available for your Python version
+faiss-cpu

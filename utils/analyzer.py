@@ -1,81 +1,16 @@
-import os
-import re
-from functools import lru_cache
-
+from transformers import pipeline
 from utils.preprocess import clean_text
 
-try:
-    from transformers import pipeline
-except ModuleNotFoundError:
-    pipeline = None
+# Load models
+sentiment_model = pipeline("sentiment-analysis")
+summarizer = None
 
 
-LIGHTWEIGHT_SENTIMENT_MODEL = "distilbert-base-uncased-finetuned-sst-2-english"
-
-POSITIVE_HINTS = {
-    "good",
-    "great",
-    "smooth",
-    "helpful",
-    "quick",
-    "resolved",
-    "satisfied",
-    "happy",
-    "excellent",
-}
-NEGATIVE_HINTS = {
-    "bad",
-    "delay",
-    "delayed",
-    "failed",
-    "fraud",
-    "issue",
-    "problem",
-    "complaint",
-    "unauthorized",
-    "charged",
-    "debited",
-    "blocked",
-    "error",
-    "poor",
-    "refund",
-    "stuck",
-}
-
-
-def _should_use_transformers() -> bool:
-    return os.getenv("USE_TRANSFORMERS_SENTIMENT", "").strip().lower() in {"1", "true", "yes"}
-
-
-@lru_cache(maxsize=1)
-def get_sentiment_model():
-    if pipeline is None or not _should_use_transformers():
-        return None
-
-    return pipeline("sentiment-analysis", model=LIGHTWEIGHT_SENTIMENT_MODEL)
-
-
-def _tokenize(text: str) -> list[str]:
-    return re.findall(r"[a-zA-Z']+", text.lower())
-
-
-def _keyword_sentiment(text: str) -> str:
-    tokens = _tokenize(text)
-    positive_score = sum(token in POSITIVE_HINTS for token in tokens)
-    negative_score = sum(token in NEGATIVE_HINTS for token in tokens)
-    return "Positive" if positive_score > negative_score else "Negative"
-
-
-def classify_sentiment(text: str) -> str:
-    sentiment_model = get_sentiment_model()
-    if sentiment_model is None:
-        return _keyword_sentiment(text)
-
-    try:
-        result = sentiment_model(text)[0]
-        return "Positive" if result["label"] == "POSITIVE" else "Negative"
-    except Exception:
-        return _keyword_sentiment(text)
+def get_summarizer():
+    global summarizer
+    if summarizer is None:
+        summarizer = pipeline("summarization")
+    return summarizer
 
 
 def make_triage_summary(text, category, sentiment):
@@ -93,8 +28,16 @@ def make_triage_summary(text, category, sentiment):
 def analyze_complaint(text):
     cleaned_text = clean_text(text)
 
-    sentiment = classify_sentiment(cleaned_text)
+    # --- Sentiment ---
+    result = sentiment_model(cleaned_text)[0]
+    sentiment = result['label']
 
+    if sentiment == "POSITIVE":
+        sentiment = "Positive"
+    else:
+        sentiment = "Negative"
+
+    # --- Category ---
     text_lower = cleaned_text
 
     if "loan" in text_lower:
@@ -125,6 +68,22 @@ def analyze_complaint(text):
         category = "Other"
         reason = "The complaint does not match predefined categories."
 
-    summary = make_triage_summary(text, category, sentiment)
+    # --- Summary ---
+    # One-line complaints are already shorter than a useful model summary.
+    # A structured triage summary is more useful and avoids model repetition.
+    word_count = len(cleaned_text.split())
+    if word_count < 25:
+        summary = make_triage_summary(text, category, sentiment)
+    else:
+        try:
+            summary_result = get_summarizer()(text.strip(), max_length=35, min_length=12, do_sample=False)
+            model_summary = summary_result[0]['summary_text'].strip()
+
+            if model_summary.lower() == cleaned_text or len(model_summary.split()) >= word_count:
+                summary = make_triage_summary(text, category, sentiment)
+            else:
+                summary = model_summary
+        except:
+            summary = make_triage_summary(text, category, sentiment)
 
     return sentiment, category, summary, reason

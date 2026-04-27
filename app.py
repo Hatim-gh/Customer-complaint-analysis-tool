@@ -1,6 +1,8 @@
+import html
+from pathlib import Path
+
 import pandas as pd
 import streamlit as st
-from pathlib import Path
 
 from utils.analyzer import analyze_complaint
 from utils.live_store import LIVE_DATA_COLUMNS, append_live_record, clear_live_data, load_live_data
@@ -23,26 +25,34 @@ def inject_styles() -> None:
         """
         <style>
             :root {
-                --bg: #06111f;
-                --bg-soft: rgba(13, 24, 43, 0.82);
-                --panel: rgba(10, 23, 39, 0.76);
-                --panel-border: rgba(148, 163, 184, 0.18);
-                --text: #e2e8f0;
-                --muted: #8aa0bc;
-                --accent: #38bdf8;
-                --accent-strong: #0ea5e9;
-                --warning: #f97316;
+                --bg: #071019;
+                --bg-deep: #030712;
+                --panel: rgba(7, 16, 28, 0.78);
+                --panel-strong: rgba(8, 19, 33, 0.94);
+                --panel-border: rgba(148, 163, 184, 0.14);
+                --panel-border-strong: rgba(125, 211, 252, 0.22);
+                --text: #e8eef7;
+                --muted: #8fa6bf;
+                --accent: #7dd3fc;
+                --accent-strong: #38bdf8;
+                --accent-warm: #f59e0b;
                 --danger: #fb7185;
                 --success: #34d399;
+                --shadow: 0 24px 70px rgba(2, 6, 23, 0.42);
             }
 
             .stApp {
                 background:
-                    radial-gradient(circle at top left, rgba(14, 165, 233, 0.14), transparent 28%),
-                    radial-gradient(circle at top right, rgba(251, 113, 133, 0.12), transparent 24%),
-                    linear-gradient(180deg, #08111e 0%, #040a13 100%);
+                    radial-gradient(circle at top left, rgba(56, 189, 248, 0.16), transparent 30%),
+                    radial-gradient(circle at 85% 10%, rgba(245, 158, 11, 0.12), transparent 18%),
+                    linear-gradient(180deg, #071019 0%, #030712 100%);
                 color: var(--text);
                 font-family: "Aptos", "Segoe UI", sans-serif;
+                overflow-x: hidden;
+            }
+
+            [data-testid="stAppViewContainer"] {
+                overflow-x: hidden;
             }
 
             [data-testid="stHeader"] {
@@ -51,187 +61,391 @@ def inject_styles() -> None:
 
             [data-testid="stSidebar"] {
                 background:
-                    linear-gradient(180deg, rgba(7, 18, 32, 0.98), rgba(5, 13, 24, 0.98));
-                border-right: 1px solid rgba(148, 163, 184, 0.12);
+                    linear-gradient(180deg, rgba(6, 16, 28, 0.98), rgba(4, 10, 18, 0.98));
+                border-right: 1px solid rgba(148, 163, 184, 0.1);
             }
 
             .block-container {
-                padding-top: 2.1rem;
-                padding-bottom: 2.5rem;
-                max-width: 1380px;
+                padding-top: 1.5rem;
+                padding-bottom: 3rem;
+                max-width: 1320px;
+            }
+
+            [data-testid="stHorizontalBlock"] > div {
+                min-width: 0;
             }
 
             h1, h2, h3 {
                 color: #f8fafc;
                 font-family: "Bahnschrift", "Aptos", sans-serif;
-                letter-spacing: -0.02em;
+                letter-spacing: -0.03em;
             }
 
             p, label, .stCaption, .stMarkdown, .stText {
                 color: var(--text);
             }
 
-            .hero-panel {
+            .hero-shell {
                 display: grid;
-                grid-template-columns: minmax(0, 1.8fr) minmax(280px, 0.9fr);
-                gap: 1.2rem;
-                padding: 1.5rem;
-                margin-bottom: 1.1rem;
-                border: 1px solid rgba(56, 189, 248, 0.15);
-                border-radius: 28px;
+                grid-template-columns: minmax(0, 1.3fr) minmax(320px, 0.95fr);
+                gap: 1.4rem;
+                align-items: stretch;
+                position: relative;
+                overflow: hidden;
+                padding: clamp(1.2rem, 2.5vw, 2rem);
+                margin: 0 0 1.35rem 0;
+                width: 100%;
+                min-height: 0;
+                border: 1px solid rgba(125, 211, 252, 0.14);
+                border-radius: 30px;
                 background:
-                    linear-gradient(135deg, rgba(8, 22, 39, 0.96), rgba(6, 17, 31, 0.82)),
-                    linear-gradient(135deg, rgba(56, 189, 248, 0.08), rgba(251, 113, 133, 0.04));
-                box-shadow: 0 24px 60px rgba(2, 8, 23, 0.45);
+                    radial-gradient(circle at 18% 15%, rgba(56, 189, 248, 0.13), transparent 24%),
+                    radial-gradient(circle at 88% 20%, rgba(245, 158, 11, 0.11), transparent 16%),
+                    linear-gradient(135deg, rgba(8, 19, 33, 0.98), rgba(4, 10, 19, 0.94));
+                box-shadow: var(--shadow);
+                isolation: isolate;
+                animation: heroEntrance 0.8s ease-out both;
+                box-sizing: border-box;
+            }
+
+            .hero-shell::before {
+                content: "";
+                position: absolute;
+                inset: 0;
+                background:
+                    linear-gradient(120deg, rgba(125, 211, 252, 0.08), transparent 45%),
+                    linear-gradient(180deg, transparent 60%, rgba(3, 7, 18, 0.35));
+                pointer-events: none;
+            }
+
+            .hero-copy-group,
+            .hero-visual {
+                position: relative;
+                z-index: 1;
+                min-width: 0;
             }
 
             .eyebrow {
                 margin: 0 0 0.6rem 0;
-                color: #7dd3fc;
+                color: var(--accent);
                 font-size: 0.78rem;
                 font-weight: 700;
-                letter-spacing: 0.16em;
+                letter-spacing: 0.18em;
+                text-transform: uppercase;
             }
 
             .hero-title {
                 margin: 0;
-                font-size: clamp(2rem, 3.8vw, 3.4rem);
-                line-height: 0.98;
-                max-width: 12ch;
+                font-size: clamp(2rem, 4.1vw, 3.7rem);
+                line-height: 0.95;
+                max-width: 11ch;
             }
 
             .hero-copy {
-                max-width: 58ch;
-                margin: 0.9rem 0 1.1rem 0;
-                color: #bfd3ea;
-                font-size: 1rem;
+                max-width: 52ch;
+                margin: 0.95rem 0 1.05rem 0;
+                color: #cad8e8;
+                font-size: clamp(0.98rem, 1.4vw, 1.05rem);
                 line-height: 1.65;
             }
 
-            .pill-row {
-                display: flex;
-                flex-wrap: wrap;
-                gap: 0.6rem;
+            .hero-stat-row {
+                display: grid;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 0.75rem;
+                margin-top: 1rem;
             }
 
-            .hero-pill {
-                padding: 0.48rem 0.82rem;
-                border-radius: 999px;
-                border: 1px solid rgba(148, 163, 184, 0.18);
-                background: rgba(15, 23, 42, 0.55);
-                color: #dbeafe;
-                font-size: 0.88rem;
+            .hero-stat {
+                min-width: 0;
+                padding: 0.9rem 0.95rem;
+                border-radius: 18px;
+                border: 1px solid rgba(148, 163, 184, 0.12);
+                background: rgba(9, 17, 29, 0.5);
+                backdrop-filter: blur(12px);
             }
 
-            .hero-aside {
-                padding: 1.2rem;
-                border-radius: 22px;
-                border: 1px solid rgba(148, 163, 184, 0.16);
-                background: linear-gradient(180deg, rgba(15, 23, 42, 0.72), rgba(9, 17, 30, 0.92));
-                align-self: stretch;
-            }
-
-            .hero-aside-label {
-                color: #94a3b8;
-                font-size: 0.82rem;
-                text-transform: uppercase;
-                letter-spacing: 0.14em;
-            }
-
-            .hero-aside-value {
-                margin-top: 0.6rem;
-                font-size: 2rem;
-                font-weight: 700;
+            .hero-stat-value {
+                display: block;
+                margin-bottom: 0.18rem;
                 color: #f8fafc;
+                font-size: 1.15rem;
+                font-weight: 700;
             }
 
-            .hero-aside-copy {
-                margin-top: 0.65rem;
-                color: #bfd3ea;
+            .hero-stat-label {
+                color: #a9bdd3;
+                font-size: 0.84rem;
+                line-height: 1.45;
+            }
+
+            .hero-visual {
+                display: grid;
+                gap: 0.85rem;
+                align-content: stretch;
+                min-height: 100%;
+            }
+
+            .hero-side-panel,
+            .hero-side-card {
+                position: relative;
+                padding: 1.05rem 1.1rem;
+                border-radius: 24px;
+                border: 1px solid rgba(148, 163, 184, 0.16);
+                background:
+                    linear-gradient(180deg, rgba(10, 21, 36, 0.9), rgba(4, 10, 18, 0.96));
+                box-shadow: 0 18px 36px rgba(2, 6, 23, 0.24);
+            }
+
+            .hero-side-panel {
+                display: grid;
+                gap: 1rem;
+                min-height: 100%;
+            }
+
+            .hero-side-label {
+                color: #93a7bb;
+                font-size: 0.76rem;
+                text-transform: uppercase;
+                letter-spacing: 0.16em;
+            }
+
+            .hero-side-title {
+                margin-top: 0.4rem;
+                color: #f8fafc;
+                font-size: 1.2rem;
+                font-weight: 700;
+                line-height: 1.25;
+            }
+
+            .hero-side-copy {
+                margin-top: 0.5rem;
+                color: #c6d3e3;
                 line-height: 1.6;
             }
 
+            .hero-glance-grid {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 0.7rem;
+            }
+
+            .hero-glance-item {
+                padding: 0.9rem;
+                border-radius: 18px;
+                border: 1px solid rgba(148, 163, 184, 0.12);
+                background: rgba(6, 14, 24, 0.8);
+            }
+
+            .hero-glance-label {
+                color: #90a7c0;
+                font-size: 0.75rem;
+                text-transform: uppercase;
+                letter-spacing: 0.13em;
+            }
+
+            .hero-glance-value {
+                margin-top: 0.4rem;
+                color: #f8fafc;
+                font-size: 1.18rem;
+                font-weight: 700;
+                line-height: 1.2;
+                word-break: break-word;
+            }
+
+            .hero-side-card {
+                background:
+                    linear-gradient(180deg, rgba(8, 17, 29, 0.92), rgba(5, 11, 20, 0.98));
+            }
+
             .section-kicker {
-                margin: 1.4rem 0 0.25rem 0;
-                color: #7dd3fc;
+                margin: 1.6rem 0 0.35rem 0;
+                color: var(--accent);
                 font-size: 0.78rem;
                 font-weight: 700;
-                letter-spacing: 0.12em;
+                letter-spacing: 0.14em;
                 text-transform: uppercase;
             }
 
             .section-title {
-                margin: 0 0 0.35rem 0;
-                font-size: 1.55rem;
+                margin: 0 0 0.4rem 0;
+                font-size: clamp(1.45rem, 2.4vw, 2.15rem);
                 font-weight: 700;
                 color: #f8fafc;
             }
 
             .section-copy {
-                margin: 0 0 1rem 0;
+                max-width: 72ch;
+                margin: 0 0 1.15rem 0;
                 color: var(--muted);
                 line-height: 1.6;
             }
 
             .metric-panel,
             .insight-panel {
-                padding: 1rem 1.05rem;
-                border-radius: 22px;
+                padding: 1.05rem 1.1rem;
+                border-radius: 24px;
                 border: 1px solid var(--panel-border);
                 background:
-                    linear-gradient(180deg, rgba(14, 25, 43, 0.72), rgba(7, 14, 24, 0.96));
-                min-height: 144px;
+                    linear-gradient(180deg, rgba(9, 19, 32, 0.78), rgba(5, 11, 20, 0.96));
+                min-height: 150px;
+                box-shadow: 0 18px 36px rgba(2, 6, 23, 0.18);
             }
 
             .metric-label,
             .insight-label {
-                color: #94a3b8;
+                color: #9ab0c7;
                 font-size: 0.82rem;
                 text-transform: uppercase;
-                letter-spacing: 0.12em;
+                letter-spacing: 0.13em;
             }
 
             .metric-value,
             .insight-value {
                 margin-top: 0.8rem;
                 color: #f8fafc;
-                font-size: 2rem;
+                font-size: clamp(1.45rem, 2vw, 2.15rem);
                 font-weight: 700;
-                line-height: 1;
+                line-height: 1.05;
+                word-break: break-word;
             }
 
             .metric-detail,
             .insight-detail {
                 margin-top: 0.7rem;
-                color: #bfd3ea;
+                color: #c2d0e1;
                 line-height: 1.5;
             }
 
             .info-strip {
-                margin-top: 0.8rem;
-                padding: 0.85rem 1rem;
-                border-radius: 18px;
-                border: 1px solid rgba(56, 189, 248, 0.16);
-                background: rgba(8, 21, 36, 0.72);
+                margin-top: 0.9rem;
+                padding: 1rem 1.05rem;
+                border-radius: 22px;
+                border: 1px solid rgba(125, 211, 252, 0.16);
+                background: rgba(7, 18, 31, 0.76);
                 color: #dbeafe;
                 line-height: 1.6;
             }
 
             .surface-note {
-                padding: 0.95rem 1rem;
-                border-radius: 18px;
+                padding: 1rem 1.05rem;
+                border-radius: 22px;
                 border: 1px solid rgba(148, 163, 184, 0.16);
-                background: rgba(8, 18, 31, 0.74);
+                background: rgba(7, 18, 31, 0.72);
                 color: #d7e5f7;
                 line-height: 1.6;
             }
 
-            .stTextArea textarea {
-                min-height: 180px;
-                border-radius: 20px;
-                border: 1px solid rgba(148, 163, 184, 0.22);
-                background: rgba(10, 18, 31, 0.92);
+            .surface-note strong {
                 color: #f8fafc;
+            }
+
+            .process-shell,
+            .text-surface {
+                padding: 1.05rem 1.1rem;
+                border-radius: 24px;
+                border: 1px solid var(--panel-border);
+                background: linear-gradient(180deg, rgba(9, 19, 32, 0.78), rgba(5, 11, 20, 0.96));
+                box-shadow: 0 18px 36px rgba(2, 6, 23, 0.18);
+            }
+
+            .process-shell + .surface-note,
+            .text-surface + .text-surface {
+                margin-top: 0.9rem;
+            }
+
+            .process-kicker,
+            .text-surface-label {
+                color: var(--accent);
+                font-size: 0.78rem;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.14em;
+            }
+
+            .process-title,
+            .text-surface-title {
+                margin-top: 0.45rem;
+                color: #f8fafc;
+                font-size: 1.2rem;
+                font-weight: 700;
+                line-height: 1.25;
+            }
+
+            .text-surface-body {
+                margin-top: 0.7rem;
+                color: #c9d7e7;
+                line-height: 1.7;
+                white-space: normal;
+            }
+
+            .process-list {
+                margin-top: 1rem;
+                display: grid;
+                gap: 0.85rem;
+            }
+
+            .process-step {
+                display: grid;
+                grid-template-columns: 40px minmax(0, 1fr);
+                gap: 0.75rem;
+                align-items: start;
+            }
+
+            .process-step-index {
+                width: 40px;
+                height: 40px;
+                border-radius: 14px;
+                border: 1px solid rgba(125, 211, 252, 0.18);
+                background: rgba(12, 28, 46, 0.72);
+                color: #f8fafc;
+                display: grid;
+                place-items: center;
+                font-weight: 700;
+            }
+
+            .process-step-title {
+                color: #f8fafc;
+                font-size: 0.98rem;
+                font-weight: 700;
+            }
+
+            .process-step-copy {
+                margin-top: 0.2rem;
+                color: #b9cade;
+                font-size: 0.93rem;
+                line-height: 1.55;
+            }
+
+            div[data-testid="stForm"] {
+                border: 1px solid var(--panel-border-strong);
+                border-radius: 28px;
+                padding: 0.9rem 1rem 0.25rem;
+                background:
+                    linear-gradient(180deg, rgba(9, 19, 32, 0.8), rgba(5, 11, 20, 0.96));
+                box-shadow: var(--shadow);
+                transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+            }
+
+            div[data-testid="stForm"]:hover,
+            .metric-panel:hover,
+            .process-shell:hover,
+            .text-surface:hover,
+            div[data-testid="stDataFrame"]:hover,
+            div[data-testid="stVegaLiteChart"]:hover {
+                transform: translateY(-2px);
+                border-color: rgba(125, 211, 252, 0.22);
+                box-shadow: 0 26px 52px rgba(2, 6, 23, 0.24);
+            }
+
+            .stTextArea textarea {
+                min-height: 220px;
+                border-radius: 22px;
+                border: 1px solid rgba(148, 163, 184, 0.18);
+                background: rgba(6, 14, 24, 0.94);
+                color: #f8fafc;
+                line-height: 1.65;
+                padding: 1rem 1rem 1.05rem;
             }
 
             .stMultiSelect div[data-baseweb="select"],
@@ -244,16 +458,32 @@ def inject_styles() -> None:
             .stFormSubmitButton > button {
                 border: 0;
                 border-radius: 999px;
-                padding: 0.72rem 1.35rem;
-                background: linear-gradient(135deg, #0ea5e9, #2563eb);
+                min-height: 50px;
+                padding: 0.8rem 1.45rem;
+                background: linear-gradient(135deg, #38bdf8, #2563eb);
                 color: #eff6ff;
                 font-weight: 700;
-                box-shadow: 0 16px 30px rgba(14, 165, 233, 0.24);
+                letter-spacing: 0.01em;
+                box-shadow: 0 18px 32px rgba(37, 99, 235, 0.26);
+                transition: transform 180ms ease, box-shadow 180ms ease, filter 180ms ease;
             }
 
             .stButton > button:hover,
             .stFormSubmitButton > button:hover {
-                background: linear-gradient(135deg, #38bdf8, #2563eb);
+                filter: brightness(1.06);
+                transform: translateY(-1px);
+                box-shadow: 0 22px 36px rgba(37, 99, 235, 0.32);
+            }
+
+            div[data-testid="stDataFrame"],
+            div[data-testid="stVegaLiteChart"] {
+                border: 1px solid var(--panel-border);
+                border-radius: 24px;
+                padding: 0.45rem;
+                background:
+                    linear-gradient(180deg, rgba(9, 19, 32, 0.72), rgba(5, 11, 20, 0.94));
+                box-shadow: 0 18px 36px rgba(2, 6, 23, 0.18);
+                transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
             }
 
             [data-testid="stDataFrame"],
@@ -265,9 +495,112 @@ def inject_styles() -> None:
                 color: #f8fafc;
             }
 
+            [data-testid="stSidebar"] [data-testid="stMetric"] {
+                border: 1px solid rgba(148, 163, 184, 0.1);
+                border-radius: 20px;
+                padding: 0.65rem 0.75rem;
+                background: rgba(8, 17, 30, 0.58);
+            }
+
+            .stTabs [data-baseweb="tab-list"] {
+                gap: 0.5rem;
+            }
+
+            .stTabs [data-baseweb="tab"] {
+                height: auto;
+                padding: 0.7rem 1rem;
+                border-radius: 999px;
+                background: rgba(8, 17, 30, 0.78);
+                color: #c9d6e5;
+                border: 1px solid rgba(148, 163, 184, 0.12);
+            }
+
+            .stTabs [aria-selected="true"] {
+                background: rgba(56, 189, 248, 0.14);
+                color: #f8fafc;
+                border-color: rgba(125, 211, 252, 0.26);
+            }
+
+            div[data-testid="stAlert"] {
+                border-radius: 20px;
+                border: 1px solid rgba(148, 163, 184, 0.14);
+                background: rgba(7, 18, 31, 0.84);
+            }
+
+            @keyframes heroEntrance {
+                from {
+                    opacity: 0;
+                    transform: translateY(18px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+
             @media (max-width: 980px) {
-                .hero-panel {
+                .hero-shell {
                     grid-template-columns: 1fr;
+                    padding: 1.3rem;
+                    border-radius: 30px;
+                }
+
+                .hero-title {
+                    max-width: 11ch;
+                }
+
+                .hero-stat-row,
+                .hero-glance-grid {
+                    grid-template-columns: 1fr;
+                }
+            }
+
+            @media (max-width: 640px) {
+                .block-container {
+                    padding-top: 1rem;
+                    padding-left: 0.85rem;
+                    padding-right: 0.85rem;
+                    padding-bottom: 2.25rem;
+                }
+
+                .hero-shell {
+                    padding: 1.1rem;
+                    margin-bottom: 1.25rem;
+                    border-radius: 26px;
+                }
+
+                .hero-title {
+                    font-size: 2.15rem;
+                    line-height: 0.96;
+                }
+
+                .hero-copy {
+                    font-size: 0.96rem;
+                }
+
+                .hero-stat-row {
+                    grid-template-columns: 1fr;
+                }
+
+                .hero-side-panel,
+                .hero-side-card {
+                    border-radius: 20px;
+                }
+
+                .metric-panel,
+                .insight-panel,
+                .process-shell,
+                .text-surface {
+                    border-radius: 22px;
+                }
+
+                .stTextArea textarea {
+                    min-height: 180px;
+                }
+
+                .stButton > button,
+                .stFormSubmitButton > button {
+                    width: 100%;
                 }
             }
         </style>
@@ -307,6 +640,68 @@ def render_insight_card(label: str, value: str, detail: str) -> None:
         """,
         unsafe_allow_html=True,
     )
+
+
+def render_section_header(kicker: str, title: str, copy: str) -> None:
+    st.markdown(
+        f"""
+        <div class="section-kicker">{html.escape(kicker)}</div>
+        <div class="section-title">{html.escape(title)}</div>
+        <div class="section-copy">{html.escape(copy)}</div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_text_surface(label: str, title: str, body: str) -> None:
+    safe_body = html.escape(body).replace("\n", "<br>")
+    st.markdown(
+        f"""
+        <div class="text-surface">
+            <div class="text-surface-label">{html.escape(label)}</div>
+            <div class="text-surface-title">{html.escape(title)}</div>
+            <div class="text-surface-body">{safe_body}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_process_surface() -> None:
+    st.markdown(
+        """
+        <div class="process-shell">
+            <div class="process-kicker">Live triage flow</div>
+            <div class="process-title">What happens after a complaint is submitted</div>
+            <div class="process-list">
+                <div class="process-step">
+                    <div class="process-step-index">1</div>
+                    <div>
+                        <div class="process-step-title">Sentiment model reads the customer tone</div>
+                        <div class="process-step-copy">The Transformers pipeline estimates whether the case arrives as positive or negative language.</div>
+                    </div>
+                </div>
+                <div class="process-step">
+                    <div class="process-step-index">2</div>
+                    <div>
+                        <div class="process-step-title">Rules map the issue into a banking category</div>
+                        <div class="process-step-copy">Keyword logic adds a complaint category and a short explanation that support teams can scan quickly.</div>
+                    </div>
+                </div>
+                <div class="process-step">
+                    <div class="process-step-index">3</div>
+                    <div>
+                        <div class="process-step-title">Embeddings pull related historical examples</div>
+                        <div class="process-step-copy">Similarity search compares the new complaint with the static reference archive for context and precedent.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def build_trend_spec() -> dict:
     return {
         "height": 320,
@@ -453,10 +848,19 @@ if "analysis_result" not in st.session_state:
     st.session_state.analysis_result = None
 
 
-st.sidebar.markdown("## Live Dashboard")
-st.sidebar.caption("These charts update from complaints stored in the live database.")
+st.sidebar.markdown("## Command Center")
+st.sidebar.caption("Operational view of the live complaint pipeline and saved analyses.")
 st.sidebar.metric("Reference Complaints", len(reference_data))
 st.sidebar.metric("Saved Live Analyses", len(live_data))
+st.sidebar.markdown(
+    """
+    <div class="surface-note">
+        <strong>Control note</strong><br>
+        The historical CSV powers similarity search. The charts and register below react only to live analyses saved into the database.
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 if st.sidebar.button("Clear Live Dashboard"):
     clear_live_data()
@@ -527,26 +931,66 @@ reference_window = (
 
 st.markdown(
     f"""
-    <div class="hero-panel">
-        <div>
-            <div class="eyebrow">BANKING CX INTELLIGENCE</div>
-            <h1 class="hero-title">Live complaint analysis dashboard powered by your pretrained models.</h1>
+    <div class="hero-shell">
+        <div class="hero-copy-group">
+            <div class="eyebrow">Banking Complaint Command Center</div>
+            <h1 class="hero-title">Operational complaint triage built for live support teams.</h1>
             <p class="hero-copy">
-                Analyze a complaint, generate model outputs in real time, and watch the dashboard
-                update from live database activity instead of fixed historical chart data.
+                Run a new complaint through the AI pipeline, capture the result instantly, and
+                monitor how live customer issues are shifting across tone, category, and activity.
             </p>
-            <div class="pill-row">
-                <div class="hero-pill">{total_cases} live analyses stored</div>
-                <div class="hero-pill">{negative_rate:.0f}% live negative share</div>
-                <div class="hero-pill">{len(reference_data)} reference complaints loaded for similarity search</div>
+            <div class="hero-stat-row">
+                <div class="hero-stat">
+                    <span class="hero-stat-value">{total_cases}</span>
+                    <span class="hero-stat-label">live analyses stored in the active dashboard</span>
+                </div>
+                <div class="hero-stat">
+                    <span class="hero-stat-value">{negative_rate:.0f}%</span>
+                    <span class="hero-stat-label">current negative share across live cases</span>
+                </div>
+                <div class="hero-stat">
+                    <span class="hero-stat-value">{len(reference_data)}</span>
+                    <span class="hero-stat-label">reference complaints ready for similarity search</span>
+                </div>
             </div>
         </div>
-        <div class="hero-aside">
-            <div class="hero-aside-label">Reference Knowledge Base</div>
-            <div class="hero-aside-value">{len(reference_data)}</div>
-            <div class="hero-aside-copy">
-                complaint records from {reference_window} are kept only for similarity search,
-                demo support, and reference lookup. The live dashboard below is database-backed.
+        <div class="hero-visual">
+            <div class="hero-side-panel">
+                <div>
+                    <div class="hero-side-label">Live workspace status</div>
+                    <div class="hero-side-title">Track incoming complaint activity without losing the operational context.</div>
+                    <div class="hero-side-copy">
+                        Each analysis updates the live register, the activity trend, and the sentiment mix immediately.
+                        The reference archive stays separate so the dashboard reflects only fresh submissions.
+                    </div>
+                </div>
+                <div class="hero-glance-grid">
+                    <div class="hero-glance-item">
+                        <div class="hero-glance-label">Top category</div>
+                        <div class="hero-glance-value">{top_category}</div>
+                    </div>
+                    <div class="hero-glance-item">
+                        <div class="hero-glance-label">Latest run</div>
+                        <div class="hero-glance-value">{latest_record_label}</div>
+                    </div>
+                    <div class="hero-glance-item">
+                        <div class="hero-glance-label">Avg per minute</div>
+                        <div class="hero-glance-value">{avg_live_per_minute:.1f}</div>
+                    </div>
+                    <div class="hero-glance-item">
+                        <div class="hero-glance-label">Negative cases</div>
+                        <div class="hero-glance-value">{negative_cases}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="hero-side-card">
+                <div class="hero-side-label">Reference knowledge base</div>
+                <div class="hero-side-title">{len(reference_data)} archived complaints available</div>
+                <div class="hero-side-copy">
+                    Coverage window: {reference_window}<br><br>
+                    Historical records stay available for similarity search and case comparison while the
+                    live dashboard remains focused on new analyses only.
+                </div>
             </div>
         </div>
     </div>
@@ -564,16 +1008,25 @@ with metric_cols[2]:
 with metric_cols[3]:
     render_metric_card("Latest Analysis", latest_record_label, "Updates each time a new complaint is analyzed")
 
-st.markdown('<div class="section-kicker">AI Triage Workspace</div>', unsafe_allow_html=True)
-st.markdown('<div class="section-title">Analyze a new customer complaint</div>', unsafe_allow_html=True)
-st.markdown(
-    '<div class="section-copy">Run the complaint through sentiment analysis, summarization, category reasoning, and similarity search. Each analysis is added to the live dashboard below.</div>',
-    unsafe_allow_html=True,
+render_section_header(
+    "AI Triage Workspace",
+    "Analyze a new customer complaint",
+    "Run the complaint through sentiment analysis, summarization, category reasoning, and similarity search. Every successful analysis is written into the live dashboard below.",
 )
 
 workspace_col, insight_col = st.columns([1.45, 0.9], gap="large")
 
 with workspace_col:
+    st.markdown(
+        """
+        <div class="surface-note">
+            <strong>Input guidance</strong><br>
+            Paste a real customer complaint with enough detail for the model to capture tone,
+            summarize the issue, and match it against the reference archive.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
     with st.form("complaint-analysis-form"):
         complaint_text = st.text_area(
             "Complaint text",
@@ -611,16 +1064,14 @@ with workspace_col:
             st.warning("Please enter a complaint before running the analysis.")
 
 with insight_col:
-    render_insight_card("Sentiment Model", "AI", "Uses the Transformers pipeline to classify complaint tone")
-    render_insight_card("Category Logic", "Rules", "Maps banking keywords into complaint categories with explanations")
-    render_insight_card("Similarity Search", "FAISS / Embeddings", "Retrieves related complaints from the static reference dataset")
-
+    render_process_surface()
     st.markdown(
-        """
+        f"""
         <div class="info-strip">
             <strong>Pipeline note</strong><br>
-            Sentiment and summary are model outputs, category is inferred from complaint terms,
-            and similar cases are retrieved from the reference complaint dataset using embeddings.
+            Similarity search uses {len(reference_data)} archived complaints collected from
+            {reference_window}. Those reference records support lookup only and never alter the
+            live dashboard counts.
         </div>
         """,
         unsafe_allow_html=True,
@@ -629,11 +1080,10 @@ with insight_col:
 if st.session_state.analysis_result:
     result = st.session_state.analysis_result
 
-    st.markdown('<div class="section-kicker">Triage Output</div>', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">Latest complaint assessment</div>', unsafe_allow_html=True)
-    st.markdown(
-        '<div class="section-copy">This section presents the actual outputs your project generates from AI models, rules, and dataset retrieval.</div>',
-        unsafe_allow_html=True,
+    render_section_header(
+        "Triage Output",
+        "Latest complaint assessment",
+        "This section shows the actual outputs generated by your models, rules, and similarity retrieval for the most recent live analysis.",
     )
 
     result_cols = st.columns(4, gap="medium")
@@ -654,32 +1104,28 @@ if st.session_state.analysis_result:
             "Retrieved from the complaint dataset for comparison",
         )
 
-    summary_col, reason_col = st.columns([1.15, 0.85], gap="large")
-    with summary_col:
-        st.markdown("#### AI Summary")
-        st.info(result["summary"])
-    with reason_col:
-        st.markdown("#### Category Reason")
-        st.info(result["reason"])
+    result_tab, similar_tab = st.tabs(["Assessment", "Similar cases"])
+    with result_tab:
+        render_text_surface("Customer statement", "Original complaint", result["complaint"])
+        summary_col, reason_col = st.columns([1.1, 0.9], gap="large")
+        with summary_col:
+            render_text_surface("AI summary", "Model-generated synopsis", result["summary"])
+        with reason_col:
+            render_text_surface("Category reason", "Why this issue was classified here", result["reason"])
+    with similar_tab:
+        similar_df = result["similar_cases"].copy()
+        if "Date" in similar_df.columns:
+            similar_df["Date"] = pd.to_datetime(similar_df["Date"], errors="coerce").dt.strftime("%d %b %Y")
+        st.dataframe(
+            similar_df[["Complaint", "Category", "Sentiment", "Date"]],
+            use_container_width=True,
+            hide_index=True,
+        )
 
-    st.markdown(
-        '<div class="section-title" style="font-size:1.2rem; margin-top:1.1rem;">Similar historical complaints</div>',
-        unsafe_allow_html=True,
-    )
-    similar_df = result["similar_cases"].copy()
-    if "Date" in similar_df.columns:
-        similar_df["Date"] = pd.to_datetime(similar_df["Date"], errors="coerce").dt.strftime("%d %b %Y")
-    st.dataframe(
-        similar_df[["Complaint", "Category", "Sentiment", "Date"]],
-        use_container_width=True,
-        hide_index=True,
-    )
-
-st.markdown('<div class="section-kicker">Complaint Intelligence</div>', unsafe_allow_html=True)
-st.markdown('<div class="section-title">Live complaint analytics</div>', unsafe_allow_html=True)
-st.markdown(
-    '<div class="section-copy">These charts update in real time from complaints stored in the live database. They do not use the historical CSV for chart values.</div>',
-    unsafe_allow_html=True,
+render_section_header(
+    "Complaint Intelligence",
+    "Live complaint analytics",
+    "These charts refresh from complaints stored in the live database. Historical CSV data is used only for similarity search, not for the chart values.",
 )
 
 if dashboard_df.empty:
@@ -709,11 +1155,10 @@ else:
             use_container_width=True,
         )
 
-st.markdown('<div class="section-kicker">Case Register</div>', unsafe_allow_html=True)
-st.markdown('<div class="section-title">Live analysis register</div>', unsafe_allow_html=True)
-st.markdown(
-    '<div class="section-copy">Each new complaint analyzed is saved to the live database and immediately reflected in the live charts.</div>',
-    unsafe_allow_html=True,
+render_section_header(
+    "Case Register",
+    "Live analysis register",
+    "Each complaint analyzed in the workspace is saved to the live database and immediately reflected in the register and charts.",
 )
 
 if dashboard_df.empty:
